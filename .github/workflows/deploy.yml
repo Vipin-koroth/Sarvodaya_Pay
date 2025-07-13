@@ -4,8 +4,7 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*.*.*'
+  pull_request:
 
 jobs:
   deploy:
@@ -17,18 +16,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Some build
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
 
-      - name: Prepare tag
-        id: prepare_tag
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Setup Elm
+        run: npm install elm --global
+
+      - name: Make
+        run: elm make --optimize src/Main.elm
+
+      - name: Move files
         run: |
-          echo "DEPLOY_TAG_NAME=deploy-${TAG_NAME}" >> "${GITHUB_OUTPUT}"
+          mkdir ./public
+          mv ./index.html ./public/
+        # If you have non-minimal setup with some assets and separate html/js files,
+        # provide --output=<output-file> option for `elm make` and remove this step
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v4
+        if: github.ref == 'refs/heads/main'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
-          tag_name: ${{ steps.prepare_tag.outputs.DEPLOY_TAG_NAME }}
-          tag_message: 'Deployment ${{ github.ref_name }}'
